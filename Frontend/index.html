@@ -1,0 +1,1536 @@
+
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg?v=3" sizes="any">
+    <title>MerchantDetector — ABI loot assistant</title>
+
+    <style>
+        :root {
+            --background: #101214;
+            --surface: #191d20;
+            --surface-hover: #22282b;
+            --border: #30373a;
+            --accent: #d6ad45;
+            --text: #edf0ed;
+            --muted: #858e8e;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background: var(--background);
+            color: var(--text);
+            font-family: Arial, sans-serif;
+        }
+
+        button {
+            font: inherit;
+        }
+
+        .header {
+            height: 70px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 6%;
+            background: #151819;
+        }
+
+        .logo {
+            font-size: 19px;
+            font-weight: 800;
+            letter-spacing: 1px;
+        }
+
+        .logo span {
+            color: var(--accent);
+        }
+
+        .header-status {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #55bd78;
+            box-shadow: 0 0 10px #55bd7866;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 55px 24px;
+        }
+
+        .heading {
+            margin-bottom: 30px;
+        }
+
+        .eyebrow {
+            color: var(--accent);
+            font-size: 11px;
+            font-weight: bold;
+            letter-spacing: 2px;
+            margin-bottom: 12px;
+        }
+
+        h1 {
+            font-size: 32px;
+            margin: 0 0 10px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            font-size: 14px;
+            line-height: 1.5;
+        }
+
+        .control-panel {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .control-info h2 {
+            font-size: 16px;
+            margin: 0 0 7px;
+        }
+
+        .control-info p {
+            color: var(--muted);
+            font-size: 13px;
+            margin: 0;
+        }
+
+        .recognize-button {
+            border: none;
+            border-radius: 7px;
+            padding: 14px 24px;
+            background: var(--accent);
+            color: #171817;
+            font-weight: bold;
+            cursor: pointer;
+            transition: 0.2s;
+            white-space: nowrap;
+        }
+
+        .recognize-button:hover {
+            background: #edc65d;
+            transform: translateY(-1px);
+        }
+
+        .recognize-button:disabled {
+            opacity: 0.5;
+            cursor: wait;
+            transform: none;
+        }
+
+        .listen-status {
+            margin-top: 12px;
+            color: var(--muted);
+            font-size: 12px;
+            line-height: 1.5;
+        }
+
+        .listen-status::before {
+            content: "●";
+            color: var(--muted);
+            margin-right: 8px;
+        }
+
+        .listen-status.active::before {
+            color: #55bd78;
+        }
+
+        .listen-status.error::before {
+            color: #e07878;
+        }
+
+        .result-info { display: none; }
+
+        .items { display: grid; }
+
+        /* Results popup */
+        .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 22px;
+            background: rgba(4, 7, 9, .78);
+            backdrop-filter: blur(9px);
+        }
+        .modal-backdrop.open { display: flex; }
+        .results-modal {
+            width: min(1040px, 100%);
+            max-height: min(820px, 88vh);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: #171b1e;
+            border: 1px solid #394146;
+            border-radius: 16px;
+            box-shadow: 0 24px 90px #000b;
+            animation: modal-in .18s ease-out;
+        }
+        @keyframes modal-in {
+            from { opacity: 0; transform: translateY(10px) scale(.985); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 19px 22px 15px;
+            border-bottom: 1px solid #30383c;
+        }
+        .modal-kicker { color: var(--accent); font-size: 10px; font-weight: 800; letter-spacing: 1.8px; margin-bottom: 5px; }
+        .modal-title { margin: 0; font-size: 20px; }
+        .modal-meta { color: var(--muted); font-size: 12px; margin-top: 5px; }
+        .modal-close {
+            flex: 0 0 auto; width: 34px; height: 34px; border: 1px solid #3b4448;
+            border-radius: 9px; background: #22282b; color: #cbd1d1; font-size: 20px;
+            cursor: pointer; transition: .15s;
+        }
+        .modal-close:hover { background: #343d41; color: white; }
+        .modal-toolbar {
+            display: flex; flex-wrap: wrap; gap: 9px; align-items: center;
+            padding: 13px 20px; border-bottom: 1px solid #30383c; background: #14181a;
+        }
+        .modal-search, .modal-select {
+            min-width: 0; height: 36px; padding: 0 11px; border: 1px solid #384145;
+            border-radius: 8px; outline: none; background: #202629; color: var(--text); font: inherit; font-size: 12px;
+        }
+        .modal-search { flex: 1 1 210px; }
+        .modal-select { flex: 0 1 155px; cursor: pointer; }
+        .modal-search:focus, .modal-select:focus { border-color: #b18e43; }
+        .view-toggle {
+            height: 36px; padding: 0 13px; border: 1px solid #806a37; border-radius: 8px;
+            background: #302817; color: #e9c56e; font-size: 11px; font-weight: 700; cursor: pointer;
+        }
+        .view-toggle:hover { background: #41351d; }
+        .modal-items {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+            align-content: start; gap: 10px; padding: 16px 20px 20px;
+            overflow-y: auto; overscroll-behavior: contain;
+        }
+        .item {
+            --rarity-color: #9aa2a6;
+            position: relative; min-width: 0; overflow: hidden;
+            display: flex; flex-direction: column;
+            background: linear-gradient(145deg, color-mix(in srgb, var(--rarity-color) 10%, #202629), #191e21 72%);
+            border: 1px solid color-mix(in srgb, var(--rarity-color) 48%, #343c40);
+            border-radius: 10px; transition: transform .16s, border-color .16s, box-shadow .16s;
+        }
+        .item:hover { transform: translateY(-2px); border-color: var(--rarity-color); box-shadow: 0 5px 20px color-mix(in srgb, var(--rarity-color) 16%, transparent); }
+        .item::before { content: ""; position: absolute; inset: 0 0 auto; height: 2px; background: var(--rarity-color); opacity: .9; }
+        .item-image {
+            height: 76px; display: flex; align-items: center; justify-content: center;
+            padding: 9px; background: #11161988; border-bottom: 1px solid #ffffff0d;
+        }
+        .item-image img { max-width: 100%; max-height: 100%; object-fit: contain; }
+        .item-content { padding: 7px 8px 9px; }
+        .rarity { display: inline-block; font-size: 9px; font-weight: 800; letter-spacing: .8px; text-transform: uppercase; margin-bottom: 5px; }
+        .rarity.mythic { color: #ff666d; text-shadow: 0 0 9px #ff344b88; }
+        .item:has(.rarity.mythic) {
+            --rarity-color: #f04d59;
+            background: radial-gradient(ellipse at 50% -15%, #9e263b55, transparent 65%), linear-gradient(145deg, #3a1c25, #20191e 72%);
+            border-color: #a93c4b;
+            box-shadow: inset 0 0 22px #d52f4920, 0 0 12px #d52f4920;
+        }
+        .item:has(.rarity.mythic)::before { height: 3px; background: linear-gradient(90deg, #8f1f35, #ff8a83, #bd263f); box-shadow: 0 0 12px #ff455c99; }
+        .rarity.legendary { color: #edc45b; }
+        .item:has(.rarity.legendary) { --rarity-color: #d6aa42; }
+        .rarity.epic { color: #c49aff; }
+        .item:has(.rarity.epic) { --rarity-color: #9a70d7; }
+        .rarity.rare { color: #80b9ff; }
+        .item:has(.rarity.rare) { --rarity-color: #4d91d8; }
+        .rarity.uncommon, .rarity.common { color: #aab2b6; }
+        .item:has(.rarity.uncommon), .item:has(.rarity.common) { --rarity-color: #929da2; }
+        .item-name { font-size: 10px; line-height: 1.3; font-weight: 700; min-height: 27px; margin: 0 0 6px; overflow-wrap: anywhere; }
+        .item-price { font-size: 12px; font-weight: 800; color: #e5c16a; }
+        .empty-state { grid-column: 1 / -1; padding: 40px 20px; text-align: center; color: var(--muted); font-size: 13px; }
+        @media (max-width: 600px) {
+            .modal-backdrop { padding: 8px; }
+            .results-modal { max-height: 94vh; border-radius: 12px; }
+            .modal-header { padding: 15px; }
+            .modal-toolbar { padding: 10px; }
+            .modal-items { grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); padding: 12px; gap: 8px; }
+            .item-image { height: 78px; }
+        }
+
+        .footer {
+            border-top: 1px solid var(--border);
+            margin-top: 70px;
+            padding: 22px;
+            text-align: center;
+            color: var(--muted);
+            font-size: 11px;
+        }
+
+        @media (max-width: 600px) {
+            .container {
+                padding: 35px 16px;
+            }
+
+            .header {
+                padding: 0 18px;
+            }
+
+            h1 {
+                font-size: 25px;
+            }
+
+            .control-panel {
+                align-items: stretch;
+                flex-direction: column;
+            }
+
+            .recognize-button {
+                width: 100%;
+            }
+        }
+
+        .control-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+        /* Плавающее окно предметов: крупный список с собственной прокруткой */
+        .overlay-root { display: none; }
+        body.overlay-mode { width: 100%; height: 100%; min-height: 0; overflow: hidden; background: #111619; }
+        body.overlay-mode > .header,
+        body.overlay-mode > main,
+        body.overlay-mode > .modal-backdrop,
+        body.overlay-mode > .footer { display: none !important; }
+        body.overlay-mode .overlay-root {
+            width: 100%; height: 100vh; box-sizing: border-box;
+            display: flex; flex-direction: column; overflow: hidden;
+            background: #111619; border: 1px solid #303b41;
+        }
+        .overlay-header {
+            flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; padding: 13px 15px 11px; border-bottom: 1px solid #303b41;
+            background: #192126;
+        }
+        .overlay-heading { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+        .overlay-kicker { color: #d7b65d; font-size: 10px; font-weight: 800; letter-spacing: 1.3px; }
+        .overlay-heading strong { font-size: 15px; letter-spacing: .2px; }
+        .overlay-meta { color: #a5b0b5; font-size: 12px; }
+        .overlay-close {
+            flex: 0 0 auto; width: 32px; height: 32px; border: 1px solid #46535a;
+            border-radius: 8px; background: #252f34; color: #e4e9eb; font-size: 21px;
+            line-height: 1; cursor: pointer;
+        }
+        .overlay-tools {
+            flex: 0 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+            padding: 11px 12px; border-bottom: 1px solid #303a40; background: #151c20;
+        }
+        .overlay-tools input, .overlay-tools select {
+            min-width: 0; width: 100%; height: 38px; box-sizing: border-box; padding: 0 10px;
+            border: 1px solid #3b484f; border-radius: 7px; outline: none;
+            background: #20292e; color: #e9eeee; font: inherit; font-size: 12px;
+        }
+        .overlay-tools input { grid-column: 1 / -1; }
+        .overlay-tools input:focus, .overlay-tools select:focus { border-color: #c5a34f; }
+        .overlay-items {
+            flex: 1 1 auto; min-height: 0; display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(68px, 1fr));
+            grid-auto-rows: max-content; align-content: start;
+            gap: 7px; padding: 9px; overflow-x: hidden; overflow-y: auto;
+            overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #58656c #151b1f;
+        }
+        /* Компактные квадратные иконки: в PiP показываем только изображение и цвет редкости. */
+        .overlay-items .item {
+            display: block; position: relative; width: 100%; aspect-ratio: 1 / 1;
+            min-height: 0; border-radius: 8px; cursor: default;
+        }
+        .overlay-items .item-image {
+            width: 100%; height: 100%; min-height: 0; box-sizing: border-box;
+            display: flex; align-items: center; justify-content: center;
+            padding: 7px; border: 0; background: transparent;
+        }
+        .overlay-items .item-image img {
+            display: block; width: 72%; height: 72%; max-width: 72%; max-height: 72%;
+            object-fit: contain; image-rendering: auto;
+        }
+        .overlay-items .item-content { display: none !important; }
+        .overlay-items .item:hover { transform: none; }
+        .overlay-empty { grid-column: 1 / -1; min-height: 120px; display: grid; place-items: center; padding: 24px 12px; text-align: center; color: #98a5ab; font-size: 12px; }
+        .overlay-footer { display: none; }
+        @media (max-width: 600px) {
+            .control-actions { flex-direction: column; align-items: stretch; }
+            .recognize-button { width: 100%; }
+        }
+
+
+        /* MerchantDetector visual refresh — graphite / ice / acid lime */
+        :root {
+            color-scheme: dark;
+            --background: #090d0f;
+            --surface: #11181b;
+            --surface-hover: #1a2428;
+            --border: #27343a;
+            --accent: #c2ff4d;
+            --text: #edf4f2;
+            --muted: #87979a;
+            --lime-soft: #c2ff4d22;
+            --panel: #10171a;
+        }
+        html { scroll-behavior: smooth; }
+        body {
+            background:
+                radial-gradient(ellipse at 50% -25%, #baff4d12, transparent 48%),
+                radial-gradient(ellipse at 100% 55%, #1a687016, transparent 35%),
+                var(--background);
+            color: var(--text);
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            letter-spacing: -.01em;
+        }
+        .header {
+            height: 76px; padding: 0 max(5vw, 24px);
+            background: #0b1113dd; border-bottom: 1px solid #263238;
+            backdrop-filter: blur(18px);
+            position: sticky; top: 0; z-index: 20;
+        }
+        .brand { display: inline-flex; align-items: center; gap: 12px; color: inherit; text-decoration: none; }
+        .brand-mark, .overlay-brand-mark {
+            width: 42px; height: 42px; flex: 0 0 auto; display: grid; place-items: center;
+            border-radius: 13px; background: var(--accent); box-shadow: 0 0 28px #c2ff4d22;
+        }
+        .brand-mark img { width: 29px; height: 29px; object-fit: contain; display: block; }
+        .brand-copy { display: flex; flex-direction: column; gap: 3px; }
+        .brand-copy strong { font-size: 14px; font-weight: 900; letter-spacing: .08em; }
+        .brand-copy strong span, .overlay-heading strong span { color: var(--accent); }
+        .brand-copy small { color: #718186; font-size: 9px; letter-spacing: .17em; font-weight: 700; }
+        .header-status { gap: 10px; color: #829296; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+        .status-dot { width: 7px; height: 7px; background: #c2ff4d; box-shadow: 0 0 12px #c2ff4d88; }
+        .container { max-width: 1120px; padding: 76px 26px 90px; }
+        .heading { margin-bottom: 38px; }
+        .eyebrow { display: inline-flex; align-items: center; gap: 9px; color: var(--accent); font-size: 10px; letter-spacing: .2em; }
+        .eyebrow::before { content: ""; width: 22px; height: 1px; background: var(--accent); box-shadow: 0 0 8px #c2ff4d88; }
+        h1 { font-size: clamp(36px, 5vw, 54px); line-height: 1.02; letter-spacing: -.055em; font-weight: 850; margin: 9px 0 14px; }
+        .subtitle { max-width: 560px; color: #91a0a3; font-size: 14px; line-height: 1.7; }
+        .control-panel {
+            position: relative; overflow: hidden; padding: 28px 30px;
+            background: linear-gradient(120deg, #141e21, #101719 65%);
+            border: 1px solid #2a393e; border-radius: 18px;
+            box-shadow: 0 22px 70px #0005, inset 0 1px #ffffff08;
+        }
+        .control-panel::after { content: ""; position: absolute; width: 260px; height: 260px; right: 13%; top: -190px; border-radius: 50%; background: #c2ff4d12; filter: blur(35px); pointer-events: none; }
+        .control-info, .control-actions { position: relative; z-index: 1; }
+        .control-info h2 { font-size: 17px; font-weight: 750; letter-spacing: -.02em; margin-bottom: 8px; }
+        .control-info p { color: #8b9b9f; font-size: 13px; line-height: 1.6; }
+        .listen-status { color: #8b9b9f; margin-top: 14px; }
+        .listen-status.active { color: #c2ff4d; }
+        .recognize-button {
+            position: relative; min-height: 48px; padding: 0 22px; border-radius: 11px;
+            background: var(--accent); color: #10170a; font-size: 11px; font-weight: 900; letter-spacing: .09em;
+            box-shadow: 0 7px 26px #c2ff4d20; transition: transform .18s, box-shadow .18s, background .18s;
+        }
+        .recognize-button:hover { background: #d4ff83; transform: translateY(-2px); box-shadow: 0 10px 34px #c2ff4d35; }
+        .recognize-button:disabled { background: #71805b; color: #192014; }
+        .footer { border-color: #253238; color: #607176; letter-spacing: .12em; font-size: 9px; }
+        .results-modal { background: #0f171a; border-color: #2a3a40; border-radius: 20px; box-shadow: 0 30px 100px #000d; }
+        .modal-header { border-color: #25343a; padding: 22px 24px 18px; }
+        .modal-kicker { color: var(--accent); letter-spacing: .16em; }
+        .modal-title { font-size: 21px; letter-spacing: -.03em; }
+        .modal-toolbar { background: #0c1316; border-color: #25343a; padding: 13px 18px; }
+        .modal-search, .modal-select { background: #151f23; border-color: #2c3c42; border-radius: 9px; height: 39px; }
+        .modal-search:focus, .modal-select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px #c2ff4d15; }
+        .view-toggle { border-color: #8caf3d66; background: #c2ff4d12; color: var(--accent); border-radius: 9px; }
+        .view-toggle:hover { background: #c2ff4d22; }
+        .item { border-radius: 12px; }
+        .overlay-root { font-family: Inter, ui-sans-serif, system-ui, sans-serif; }
+        body.overlay-mode { background: #090f11; }
+        body.overlay-mode .overlay-root {
+            background: linear-gradient(155deg, #111a1d, #0b1113 68%);
+            border: 1px solid #2a393e; border-radius: 13px;
+        }
+        .overlay-header {
+            min-height: 61px; padding: 10px 12px; gap: 10px;
+            background: #111a1d; border-bottom: 1px solid #27363b;
+        }
+        .overlay-brand { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .overlay-brand-mark { width: 30px; height: 30px; border-radius: 9px; }
+        .overlay-brand-mark img { width: 21px; height: 21px; object-fit: contain; display: block; }
+        .overlay-heading { gap: 3px; }
+        .overlay-heading strong { font-size: 11px; letter-spacing: .08em; font-weight: 900; white-space: nowrap; }
+        .overlay-meta { color: #8b9b9f; font-size: 10px; }
+        .overlay-close { width: 29px; height: 29px; border-radius: 9px; border-color: #34464c; background: #1a272b; color: #a9b8ba; font-size: 19px; }
+        .overlay-close:hover { background: #26383d; color: var(--accent); border-color: #5d7a4a; }
+        .overlay-tools { gap: 7px; padding: 9px 10px; background: #0d1518; border-color: #243238; }
+        .overlay-tools input, .overlay-tools select {
+            height: 35px; border-radius: 9px; border-color: #2b3c42;
+            background: #151f23; color: #eaf2ef; font-size: 11px;
+        }
+        .overlay-tools input:focus, .overlay-tools select:focus { border-color: var(--accent); box-shadow: 0 0 0 2px #c2ff4d12; }
+        .overlay-items { gap: 7px; padding: 10px; scrollbar-color: #526b42 #10191c; }
+        .overlay-items .item {
+            border-radius: 10px; border-color: color-mix(in srgb, var(--rarity-color) 56%, #243238);
+            background: linear-gradient(145deg, color-mix(in srgb, var(--rarity-color) 17%, #172124), #101719 78%);
+            box-shadow: inset 0 1px #ffffff09;
+        }
+        .overlay-items .item:has(.rarity.mythic) {
+            background: radial-gradient(circle at 50% 10%, #ff526a44, transparent 70%), linear-gradient(145deg, #421c29, #1b151b 82%);
+            border-color: #e14b61; box-shadow: inset 0 0 18px #f43e5a24, 0 0 13px #e83c5a24;
+        }
+        .overlay-items .item-image img { width: 70%; height: 70%; max-width: 70%; max-height: 70%; }
+        .overlay-empty { color: #7f9296; }
+        @media (max-width: 600px) {
+            .header { height: 68px; padding: 0 16px; }
+            .brand-mark { width: 36px; height: 36px; border-radius: 11px; }
+            .brand-mark img { width: 25px; height: 25px; }
+            .brand-copy strong { font-size: 12px; }
+            .brand-copy small { font-size: 8px; }
+            .header-status { font-size: 8px; gap: 7px; }
+            .container { padding: 54px 17px 70px; }
+            .control-panel { padding: 22px 19px; border-radius: 15px; }
+        }
+
+        /* ========================================
+        AMBIENT BACKGROUND — плавающие эффекты
+        ======================================== */
+
+        body:not(.overlay-mode) {
+            isolation: isolate;
+            position: relative;
+        }
+
+        /* Плавающие световые пятна */
+        body:not(.overlay-mode)::before {
+            content: "";
+            position: fixed;
+            inset: -30%;
+            z-index: -1;
+            pointer-events: none;
+
+            background:
+                radial-gradient(
+                    circle at 20% 30%,
+                    #c2ff4d16 0,
+                    transparent 23%
+                ),
+                radial-gradient(
+                    circle at 80% 25%,
+                    #45d9c012 0,
+                    transparent 25%
+                ),
+                radial-gradient(
+                    circle at 65% 80%,
+                    #9b70d712 0,
+                    transparent 22%
+                );
+
+            filter: blur(35px);
+            animation: ambient-float 24s ease-in-out infinite alternate;
+        }
+
+        /* Мелкие фоновые частицы */
+        body:not(.overlay-mode)::after {
+            content: "";
+            position: fixed;
+            inset: 0;
+            z-index: -1;
+            pointer-events: none;
+
+            background-image:
+                radial-gradient(circle, #c2ff4d55 1px, transparent 1.5px),
+                radial-gradient(circle, #ffffff35 1px, transparent 1.5px),
+                radial-gradient(circle, #45d9c044 1px, transparent 1.5px);
+
+            background-size: 190px 190px, 270px 270px, 340px 340px;
+            background-position: 20px 30px, 100px 140px, 200px 70px;
+
+            opacity: .28;
+            animation: particles-float 35s linear infinite;
+        }
+
+        @keyframes ambient-float {
+            0% {
+                transform: translate3d(-2%, -1%, 0) scale(1);
+            }
+            50% {
+                transform: translate3d(2%, 2%, 0) scale(1.08);
+            }
+            100% {
+                transform: translate3d(-1%, 3%, 0) scale(1.03);
+            }
+        }
+
+        @keyframes particles-float {
+            from {
+                background-position:
+                    20px 30px,
+                    100px 140px,
+                    200px 70px;
+            }
+            to {
+                background-position:
+                    20px -160px,
+                    100px -130px,
+                    200px -230px;
+            }
+        }
+
+        /* Учитываем настройки уменьшения анимации */
+        @media (prefers-reduced-motion: reduce) {
+            body:not(.overlay-mode)::before,
+            body:not(.overlay-mode)::after {
+                animation: none;
+            }
+        }
+
+        /* ========================================
+        HEADER — опускаем разделительную линию
+        ======================================== */
+
+        .header {
+            height: 90px;
+        }
+
+        @media (max-width: 600px) {
+            .header {
+                height: 78px;
+            }
+        }
+
+    
+    </style>
+</head>
+
+<body>
+
+    <header class="header">
+        <a class="brand" href="#top" aria-label="MerchantDetector">
+            <span class="brand-mark"><img src="./logo.svg" alt=""></span>
+            <span class="brand-copy"><strong>MERCHANT<span>DETECTOR</span></strong><small>ARENA BREAKOUT ASSISTANT</small></span>
+        </a>
+
+        <div class="header-status">
+            <span class="status-dot"></span>
+            <span>ЛОКАЛЬНАЯ СИСТЕМА</span>
+        </div>
+    </header>
+
+    <main class="container" id="top">
+
+        <section class="heading">
+            <div class="eyebrow">ARENA BREAKOUT: INFINITE</div>
+            <h1>Sound Detector</h1>
+            <div class="subtitle">
+                Распознавание звуков подбора и поиск предметов по базе данных.
+            </div>
+        </section>
+
+        <section class="control-panel">
+            <div class="control-info">
+                <h2>Прослушивание игры</h2>
+                <p>При запуске откроется плавающее окно предметов. Затем выбери ABI и включи передачу системного звука.</p>
+                <div class="listen-status" id="listenStatus">Прослушивание остановлено.</div>
+            </div>
+
+            <div class="control-actions">
+                <button
+                    class="recognize-button"
+                    id="listenButton"
+                    onclick="startListening()"
+                >
+                    НАЧАТЬ ПРОСЛУШИВАНИЕ
+                </button>
+            </div>
+        </section>
+
+        <section class="result-info" id="resultInfo"></section>
+
+    </main>
+
+    <div class="modal-backdrop" id="resultsModal" aria-hidden="true">
+        <section class="results-modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+            <div class="modal-header">
+                <div>
+                    <div class="modal-kicker">ОБНАРУЖЕН ПРЕДМЕТНЫЙ ЗВУК</div>
+                    <h2 class="modal-title" id="modalTitle">Найденные предметы</h2>
+                    <div class="modal-meta"><span id="soundId">Sound ID: —</span> · сходство <span id="similarity">—</span> · <span id="itemCount">0 предметов</span></div>
+                </div>
+                <button class="modal-close" id="closeModal" type="button" aria-label="Закрыть">×</button>
+            </div>
+            <div class="modal-toolbar">
+                <input class="modal-search" id="itemSearch" type="search" placeholder="Поиск предмета..." autocomplete="off">
+                <select class="modal-select" id="rarityFilter" aria-label="Фильтр редкости">
+                    <option value="all">Все редкости</option>
+                    <option value="mythic">Красные</option>
+                    <option value="legendary">Золотые</option>
+                    <option value="epic">Фиолетовые</option>
+                    <option value="rare">Синие</option>
+                    <option value="common">Серые</option>
+                </select>
+                <select class="modal-select" id="sortItems" aria-label="Сортировка">
+                    <option value="price-desc">Сначала дорогие</option>
+                    <option value="price-asc">Сначала дешёвые</option>
+                    <option value="name">По названию</option>
+                    <option value="rarity">По редкости</option>
+                </select>
+                <button class="view-toggle" id="viewToggle" type="button">Показать все</button>
+            </div>
+            <div class="modal-items" id="items">
+                <div class="empty-state">Здесь появятся найденные предметы.</div>
+            </div>
+        </section>
+    </div>
+
+    <section class="overlay-root" id="overlayRoot" aria-label="Найденные предметы">
+        <header class="overlay-header">
+            <div class="overlay-brand">
+                <span class="overlay-brand-mark"><img src="./logo.svg" alt=""></span>
+                <span class="overlay-heading">
+                    <strong>MERCHANT<span>DETECTOR</span></strong>
+                    <span class="overlay-meta" id="overlayMeta">Ожидание звука...</span>
+                </span>
+            </div>
+            <button class="overlay-close" id="overlayClose" type="button" title="Закрыть окно">×</button>
+        </header>
+        <div class="overlay-tools">
+            <input id="overlaySearch" type="search" placeholder="Поиск предмета..." autocomplete="off">
+            <select id="overlayRarity" aria-label="Фильтр редкости">
+                <option value="all">Все редкости</option>
+                <option value="mythic">Красные</option>
+                <option value="legendary">Золотые</option>
+                <option value="epic">Фиолетовые</option>
+                <option value="rare">Синие</option>
+                <option value="common">Серые</option>
+            </select>
+            <select id="overlaySort" aria-label="Сортировка">
+                <option value="price-desc">Дорогие сверху</option>
+                <option value="rarity">По редкости</option>
+                <option value="name">По названию</option>
+                <option value="price-asc">Дешёвые сверху</option>
+            </select>
+        </div>
+        <div class="overlay-items" id="overlayItems">
+            <div class="overlay-empty">Здесь появятся распознанные предметы</div>
+        </div>
+        <footer class="overlay-footer" id="overlayFooter">Окно синхронизировано с основной страницей</footer>
+    </section>
+
+    <footer class="footer">
+        ABI SOUND DETECTOR · UNOFFICIAL FAN PROJECT
+    </footer>
+
+    <script>
+    const button = document.getElementById("listenButton");
+    const statusPanel = document.getElementById("resultInfo");
+    const itemsContainer = document.getElementById("items");
+    const listenStatus = document.getElementById("listenStatus");
+    const resultsModal = document.getElementById("resultsModal");
+    const itemSearch = document.getElementById("itemSearch");
+    const rarityFilter = document.getElementById("rarityFilter");
+    const sortItems = document.getElementById("sortItems");
+    const viewToggle = document.getElementById("viewToggle");
+
+    let currentItems = [];
+    let showAllItems = false;
+    const DEFAULT_VISIBLE_ITEMS = 12;
+    const OVERLAY_STORAGE_KEY = "merchantDetectorLatestItems";
+    let pipWindow = null;
+    const overlayRoot = document.getElementById("overlayRoot");
+    const overlayHome = overlayRoot.parentNode;
+
+    // Открываем настоящий always-on-top Document Picture-in-Picture.
+    // Функция вызывается непосредственно из клика «Начать прослушивание».
+    async function openItemsPiP() {
+        if (pipWindow && !pipWindow.closed) {
+            return pipWindow;
+        }
+
+        if (!("documentPictureInPicture" in window)) {
+            throw new Error(
+                "Этот браузер не поддерживает плавающее окно. Открой MerchantDetector в актуальном Chrome или Edge."
+            );
+        }
+
+        const pip = await window.documentPictureInPicture.requestWindow({
+            width: 440,
+            height: 680,
+            disallowReturnToOpener: true
+        });
+
+        pipWindow = pip;
+        pip.document.title = "MerchantDetector — предметы";
+        pip.document.documentElement.lang = "ru";
+
+        // Переносим стили основной страницы в PiP-документ.
+        document.querySelectorAll('style, link[rel="stylesheet"]').forEach(source => {
+            pip.document.head.appendChild(source.cloneNode(true));
+        });
+
+        const base = pip.document.createElement("base");
+        base.href = document.baseURI;
+        pip.document.head.prepend(base);
+
+        pip.document.body.className = "overlay-mode";
+        pip.document.body.style.margin = "0";
+        pip.document.body.style.width = "100vw";
+        pip.document.documentElement.style.width = "100%";
+        pip.document.documentElement.style.height = "100%";
+        pip.document.body.appendChild(overlayRoot);
+
+        const pipSearch = pip.document.getElementById("overlaySearch");
+        const pipRarity = pip.document.getElementById("overlayRarity");
+        const pipSort = pip.document.getElementById("overlaySort");
+        const pipClose = pip.document.getElementById("overlayClose");
+
+        [pipSearch, pipRarity, pipSort].forEach(control => {
+            control.addEventListener("input", renderLastOverlayItems);
+            control.addEventListener("change", renderLastOverlayItems);
+        });
+        pipClose.addEventListener("click", () => pip.close());
+
+        pip.addEventListener("pagehide", () => {
+            if (overlayRoot.parentNode === pip.document.body) {
+                overlayHome.appendChild(overlayRoot);
+            }
+            if (pipWindow === pip) pipWindow = null;
+        });
+
+        try {
+            const saved = localStorage.getItem(OVERLAY_STORAGE_KEY);
+            if (saved) renderOverlayItems(JSON.parse(saved));
+        } catch (error) {
+            console.warn("Не удалось восстановить последние предметы:", error);
+        }
+
+        return pip;
+    }
+
+    function renderLastOverlayItems() {
+        try {
+            const saved = localStorage.getItem(OVERLAY_STORAGE_KEY);
+            if (saved) renderOverlayItems(JSON.parse(saved));
+        } catch (error) {
+            console.warn("Не удалось обновить список предметов:", error);
+        }
+    }
+
+    function renderOverlayItems(data) {
+        if (!pipWindow || pipWindow.closed) return;
+        const pipDoc = pipWindow.document;
+        const container = pipDoc.getElementById("overlayItems");
+        const meta = pipDoc.getElementById("overlayMeta");
+        if (!container || !meta) return;
+
+        const items = Array.isArray(data.items) ? [...data.items] : [];
+        const query = pipDoc.getElementById("overlaySearch").value.trim().toLocaleLowerCase("ru-RU");
+        const rarityFilter = pipDoc.getElementById("overlayRarity").value;
+        const sortMode = pipDoc.getElementById("overlaySort").value;
+
+        const rarityOrder = { mythic: 5, legendary: 4, epic: 3, rare: 2, uncommon: 1, common: 0 };
+        const filtered = items.filter(item => {
+            const matchesName = String(item.Item_Name || "").toLocaleLowerCase("ru-RU").includes(query);
+            const rarity = getRarityClass(item.Rarity_Name);
+            const matchesRarity = rarityFilter === "all"
+                || (rarityFilter === "common" ? ["common", "uncommon"].includes(rarity) : rarity === rarityFilter);
+            return matchesName && matchesRarity;
+        });
+
+        filtered.sort((a, b) => {
+            if (sortMode === "price-asc") return Number(a.Item_Price) - Number(b.Item_Price);
+            if (sortMode === "name") return String(a.Item_Name).localeCompare(String(b.Item_Name), "ru");
+            if (sortMode === "rarity") return rarityOrder[getRarityClass(b.Rarity_Name)] - rarityOrder[getRarityClass(a.Rarity_Name)] || Number(b.Item_Price) - Number(a.Item_Price);
+            return Number(b.Item_Price) - Number(a.Item_Price);
+        });
+
+        meta.textContent = `Звук №${data.sound_id ?? "—"} · найдено ${filtered.length} из ${items.length}`;
+        container.replaceChildren();
+
+        if (!filtered.length) {
+            const empty = document.createElement("div");
+            empty.className = "overlay-empty";
+            empty.textContent = items.length ? "По этому запросу ничего не найдено" : "Для этого звука предметы не найдены";
+            container.appendChild(empty);
+            return;
+        }
+
+        filtered.forEach(item => container.appendChild(createItemCard(item)));
+    }
+
+    let displayStream = null;
+    let audioContext = null;
+    let audioSource = null;
+    let processor = null;
+
+    let isListening = false;
+    let isProcessing = false;
+
+    // Настройки обнаружения звука
+    const PRE_ROLL_SECONDS = 0.18;
+    const SILENCE_SECONDS = 0.18;
+    const MIN_EVENT_SECONDS = 0.08;
+    const MAX_EVENT_SECONDS = 2.2;
+
+    const MIN_VOLUME_THRESHOLD = 0.0015;
+    const NOISE_MULTIPLIER = 2.5;
+
+    const DETECTION_COOLDOWN_MS = 1800;
+
+    // Буфер перед началом события
+    let preRollBuffer = null;
+    let preRollWriteIndex = 0;
+    let preRollFilledSamples = 0;
+
+    // Текущее событие
+    let currentEvent = [];
+    let isRecordingEvent = false;
+    let silenceSamples = 0;
+    let eventSamples = 0;
+
+    // Фоновый шум
+    let noiseFloor = 0.004;
+
+    // Очередь событий
+    let eventQueue = [];
+
+    // Защита от повторного отображения
+    let lastDetectedSound = null;
+    let lastDetectionTime = 0;
+
+
+    function setListenStatus(message, state = "") {
+        listenStatus.textContent = message;
+        listenStatus.className = "listen-status " + state;
+    }
+
+
+    function getRarityClass(rarity) {
+        const name = String(rarity || "").toLowerCase();
+        const rarityClasses = {
+            mythic: "mythic", legendary: "legendary", epic: "epic",
+            rare: "rare", uncommon: "uncommon", common: "common"
+        };
+        return rarityClasses[name] || "common";
+    }
+
+    function formatPrice(price) {
+        return Number(price).toLocaleString("ru-RU") + " ₽";
+    }
+
+    function createItemCard(item) {
+        const card = document.createElement("article");
+        card.className = "item";
+
+        const imageContainer = document.createElement("div");
+        imageContainer.className = "item-image";
+        const image = document.createElement("img");
+        image.src = `/images/${encodeURIComponent(item.Item_Image_Path)}.png`;
+        image.alt = item.Item_Name;
+        image.loading = "lazy";
+        image.onerror = () => { image.style.display = "none"; };
+        imageContainer.appendChild(image);
+
+        const content = document.createElement("div");
+        content.className = "item-content";
+        const rarity = document.createElement("div");
+        rarity.className = "rarity " + getRarityClass(item.Rarity_Name);
+        rarity.textContent = item.Rarity_Name;
+        const name = document.createElement("h3");
+        name.className = "item-name";
+        name.textContent = item.Item_Name;
+        const price = document.createElement("div");
+        price.className = "item-price";
+        price.textContent = formatPrice(item.Item_Price);
+        content.append(rarity, name, price);
+        card.append(imageContainer, content);
+        return card;
+    }
+
+    function openResultsModal() {
+        resultsModal.classList.add("open");
+        resultsModal.setAttribute("aria-hidden", "false");
+    }
+
+    function closeResultsModal() {
+        resultsModal.classList.remove("open");
+        resultsModal.setAttribute("aria-hidden", "true");
+    }
+
+    function renderItems() {
+        const query = itemSearch.value.trim().toLocaleLowerCase("ru-RU");
+        const selectedRarity = rarityFilter.value;
+        const sortMode = sortItems.value;
+
+        let filtered = currentItems.filter(item => {
+            const matchesName = String(item.Item_Name).toLocaleLowerCase("ru-RU").includes(query);
+            const rarity = getRarityClass(item.Rarity_Name);
+            const matchesRarity = selectedRarity === "all"
+                || (selectedRarity === "common" ? ["common", "uncommon"].includes(rarity) : rarity === selectedRarity);
+            return matchesName && matchesRarity;
+        });
+
+        const rarityOrder = { mythic: 5, legendary: 4, epic: 3, rare: 2, uncommon: 1, common: 0 };
+        filtered.sort((a, b) => {
+            if (sortMode === "price-asc") return Number(a.Item_Price) - Number(b.Item_Price);
+            if (sortMode === "name") return String(a.Item_Name).localeCompare(String(b.Item_Name), "ru");
+            if (sortMode === "rarity") return rarityOrder[getRarityClass(b.Rarity_Name)] - rarityOrder[getRarityClass(a.Rarity_Name)] || Number(b.Item_Price) - Number(a.Item_Price);
+            return Number(b.Item_Price) - Number(a.Item_Price);
+        });
+
+        const shouldLimit = !showAllItems && query.length === 0 && selectedRarity === "all";
+        const visible = shouldLimit ? filtered.slice(0, DEFAULT_VISIBLE_ITEMS) : filtered;
+        itemsContainer.replaceChildren();
+
+        if (visible.length === 0) {
+            const empty = document.createElement("div");
+            empty.className = "empty-state";
+            empty.textContent = "По этому запросу ничего не найдено.";
+            itemsContainer.appendChild(empty);
+        } else {
+            visible.forEach(item => itemsContainer.appendChild(createItemCard(item)));
+        }
+
+        document.getElementById("itemCount").textContent =
+            filtered.length === currentItems.length
+                ? `${currentItems.length} предметов`
+                : `${filtered.length} из ${currentItems.length} предметов`;
+
+        const canExpand = filtered.length > DEFAULT_VISIBLE_ITEMS && query.length === 0 && selectedRarity === "all";
+        viewToggle.style.display = canExpand ? "inline-block" : "none";
+        viewToggle.textContent = showAllItems ? "Показать топ-12" : `Показать все (${filtered.length})`;
+    }
+
+    function showRecognizedItems(data) {
+        document.getElementById("soundId").textContent = `Sound ID: ${data.sound_id}`;
+        document.getElementById("similarity").textContent = `${(data.similarity * 100).toFixed(1)}%`;
+
+        currentItems = Array.isArray(data.items) ? [...data.items] : [];
+        showAllItems = false;
+        itemSearch.value = "";
+        rarityFilter.value = "all";
+        sortItems.value = "price-desc";
+        renderItems();
+
+        try {
+            localStorage.setItem(OVERLAY_STORAGE_KEY, JSON.stringify(data));
+        } catch (error) {
+            console.warn("Не удалось сохранить последние предметы:", error);
+        }
+
+        renderOverlayItems(data);
+    }
+
+    document.getElementById("closeModal").addEventListener("click", closeResultsModal);
+    resultsModal.addEventListener("click", event => {
+        if (event.target === resultsModal) closeResultsModal();
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && resultsModal.classList.contains("open")) closeResultsModal();
+    });
+    itemSearch.addEventListener("input", renderItems);
+    rarityFilter.addEventListener("change", renderItems);
+    sortItems.addEventListener("change", renderItems);
+    viewToggle.addEventListener("click", () => {
+        showAllItems = !showAllItems;
+        renderItems();
+    });
+
+    // Создание WAV-файла из массива аудиосэмплов
+    function createWavBlob(samples, sampleRate) {
+        const bytesPerSample = 2;
+        const dataSize = samples.length * bytesPerSample;
+
+        const buffer = new ArrayBuffer(44 + dataSize);
+        const view = new DataView(buffer);
+
+        function writeString(offset, value) {
+            for (let i = 0; i < value.length; i++) {
+                view.setUint8(offset + i, value.charCodeAt(i));
+            }
+        }
+
+        writeString(0, "RIFF");
+        view.setUint32(4, 36 + dataSize, true);
+        writeString(8, "WAVE");
+        writeString(12, "fmt ");
+        view.setUint32(16, 16, true);
+        view.setUint16(20, 1, true);
+        view.setUint16(22, 1, true);
+        view.setUint32(24, sampleRate, true);
+        view.setUint32(28, sampleRate * bytesPerSample, true);
+        view.setUint16(32, 2, true);
+        view.setUint16(34, 16, true);
+        writeString(36, "data");
+        view.setUint32(40, dataSize, true);
+
+        let offset = 44;
+
+        for (let i = 0; i < samples.length; i++) {
+            const sample = Math.max(-1, Math.min(1, samples[i]));
+
+            const pcm = sample < 0
+                ? sample * 0x8000
+                : sample * 0x7FFF;
+
+            view.setInt16(offset, pcm, true);
+            offset += 2;
+        }
+
+        return new Blob([buffer], { type: "audio/wav" });
+    }
+
+
+    // Получение звука, накопленного до обнаружения события
+    function getPreRoll() {
+        if (!preRollBuffer || preRollFilledSamples === 0) {
+            return new Float32Array(0);
+        }
+
+        const result = new Float32Array(preRollFilledSamples);
+
+        const startIndex = (
+            preRollWriteIndex -
+            preRollFilledSamples +
+            preRollBuffer.length
+        ) % preRollBuffer.length;
+
+        const firstPartLength = Math.min(
+            preRollFilledSamples,
+            preRollBuffer.length - startIndex
+        );
+
+        result.set(
+            preRollBuffer.subarray(
+                startIndex,
+                startIndex + firstPartLength
+            )
+        );
+
+        if (firstPartLength < preRollFilledSamples) {
+            result.set(
+                preRollBuffer.subarray(
+                    0,
+                    preRollFilledSamples - firstPartLength
+                ),
+                firstPartLength
+            );
+        }
+
+        return result;
+    }
+
+
+    // Добавление аудио в кольцевой буфер
+    function addToPreRoll(samples) {
+        const capacity = preRollBuffer.length;
+
+        for (let i = 0; i < samples.length; i++) {
+            preRollBuffer[preRollWriteIndex] = samples[i];
+
+            preRollWriteIndex =
+                (preRollWriteIndex + 1) % capacity;
+
+            preRollFilledSamples = Math.min(
+                preRollFilledSamples + 1,
+                capacity
+            );
+        }
+    }
+
+
+    // Измерение громкости фрагмента
+    function calculateRMS(samples) {
+        let sum = 0;
+
+        for (let i = 0; i < samples.length; i++) {
+            sum += samples[i] * samples[i];
+        }
+
+        return Math.sqrt(sum / samples.length);
+    }
+
+
+    // Начало записи события
+    function startAudioEvent(samples) {
+        isRecordingEvent = true;
+
+        const previousAudio = getPreRoll();
+
+        currentEvent = [
+            previousAudio,
+            new Float32Array(samples)
+        ];
+
+        eventSamples = previousAudio.length + samples.length;
+        silenceSamples = 0;
+
+        console.log("Начало звукового события");
+    }
+
+
+    // Завершение записи события
+    function finishAudioEvent() {
+        isRecordingEvent = false;
+
+        const minSamples = Math.floor(
+            audioContext.sampleRate * MIN_EVENT_SECONDS
+        );
+
+        if (eventSamples >= minSamples) {
+            const completeEvent = new Float32Array(eventSamples);
+
+            let offset = 0;
+
+            for (const chunk of currentEvent) {
+                completeEvent.set(chunk, offset);
+                offset += chunk.length;
+            }
+
+            console.log(
+                `Событие завершено: ${
+                    (eventSamples / audioContext.sampleRate).toFixed(2)
+                } сек.`
+            );
+
+            eventQueue.push({
+                samples: completeEvent,
+                sampleRate: audioContext.sampleRate
+            });
+
+            processEventQueue();
+
+        } else {
+            console.log("Слишком короткое событие — пропускаем");
+        }
+
+        currentEvent = [];
+        eventSamples = 0;
+        silenceSamples = 0;
+    }
+
+
+    // Обработка каждого аудиофрагмента
+    function processAudioFrame(samples) {
+        const rms = calculateRMS(samples);
+
+        const threshold = Math.max(
+            MIN_VOLUME_THRESHOLD,
+            noiseFloor * NOISE_MULTIPLIER
+        );
+
+        if (!isRecordingEvent) {
+            if (rms < threshold) {
+                noiseFloor = noiseFloor * 0.98 + rms * 0.02;
+            }
+
+            if (rms >= threshold) {
+                startAudioEvent(samples);
+            }
+
+            addToPreRoll(samples);
+            return;
+        }
+
+        currentEvent.push(new Float32Array(samples));
+        eventSamples += samples.length;
+
+        // Буфер обновляется даже во время записи.
+        // Это важно для следующих звуковых событий.
+        addToPreRoll(samples);
+
+        if (rms < threshold * 0.7) {
+            silenceSamples += samples.length;
+        } else {
+            silenceSamples = 0;
+        }
+
+        const silenceLimit = Math.floor(
+            audioContext.sampleRate * SILENCE_SECONDS
+        );
+
+        const maxEventSamples = Math.floor(
+            audioContext.sampleRate * MAX_EVENT_SECONDS
+        );
+
+        if (
+            silenceSamples >= silenceLimit ||
+            eventSamples >= maxEventSamples
+        ) {
+            finishAudioEvent();
+        }
+    }
+
+
+    // Отправка готового события на сервер
+    async function processEventQueue() {
+        if (
+            isProcessing ||
+            eventQueue.length === 0 ||
+            !isListening
+        ) {
+            return;
+        }
+
+        isProcessing = true;
+
+        const event = eventQueue.shift();
+
+        try {
+            const wavBlob = createWavBlob(
+                event.samples,
+                event.sampleRate
+            );
+
+            const formData = new FormData();
+
+            formData.append("file", wavBlob, "event.wav");
+
+            const response = await fetch("/recognize-live", {
+                method: "POST",
+                body: formData
+            });
+
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.recognized) {
+                const now = Date.now();
+
+                const isDuplicate =
+                    data.sound_id === lastDetectedSound &&
+                    now - lastDetectionTime < DETECTION_COOLDOWN_MS;
+
+                if (!isDuplicate) {
+                    showRecognizedItems(data);
+
+                    lastDetectedSound = data.sound_id;
+                    lastDetectionTime = now;
+
+                    setListenStatus(
+                        `Обнаружен звук №${data.sound_id}. Продолжаю слушать...`,
+                        "active"
+                    );
+
+                    console.log(
+                        `Распознан Sound ID: ${data.sound_id}`,
+                        `Сходство: ${(data.similarity * 100).toFixed(1)}%`
+                    );
+                }
+            } else {
+                console.log("Звук не распознан");
+            }
+
+        } catch (error) {
+            console.error("Ошибка распознавания:", error);
+
+            setListenStatus(
+                "Ошибка отправки аудио: " + error.message,
+                "error"
+            );
+
+        } finally {
+            isProcessing = false;
+
+            if (isListening && eventQueue.length > 0) {
+                void processEventQueue();
+            }
+        }
+    }
+
+
+    // Запуск прослушивания
+    async function startListening() {
+        if (isListening) {
+            return;
+        }
+
+        if (!("documentPictureInPicture" in window)) {
+            setListenStatus(
+                "Плавающее окно не поддерживается этим браузером. Используй актуальный Chrome или Edge.",
+                "error"
+            );
+            return;
+        }
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getDisplayMedia
+        ) {
+            setListenStatus(
+                "Браузер не поддерживает захват экрана. Попробуй Chrome или Edge.",
+                "error"
+            );
+
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "ОЖИДАНИЕ ДОСТУПА...";
+
+        setListenStatus(
+            "Сначала выбери окно игры и подтверди передачу системного звука."
+        );
+
+        try {
+            // Сначала полностью завершаем выбор источника трансляции.
+            // Плавающее окно появляется только после подтверждения доступа.
+            displayStream = await navigator.mediaDevices.getDisplayMedia({
+                video: true,
+                audio: true
+            });
+
+            const audioTracks = displayStream.getAudioTracks();
+            if (audioTracks.length === 0) {
+                throw new Error(
+                    "Браузер не передал звук. При выборе окна включи передачу системного звука."
+                );
+            }
+
+            setListenStatus("Доступ получен. Открываю окно предметов...");
+            pipWindow = await openItemsPiP();
+
+            audioContext = new AudioContext();
+
+            await audioContext.resume();
+
+            audioSource =
+                audioContext.createMediaStreamSource(displayStream);
+
+            processor = audioContext.createScriptProcessor(1024, 1, 1);
+
+            const preRollSamples = Math.floor(
+                audioContext.sampleRate * PRE_ROLL_SECONDS
+            );
+
+            preRollBuffer = new Float32Array(preRollSamples);
+
+            preRollWriteIndex = 0;
+            preRollFilledSamples = 0;
+
+            currentEvent = [];
+            isRecordingEvent = false;
+
+            silenceSamples = 0;
+            eventSamples = 0;
+
+            noiseFloor = 0.004;
+
+            eventQueue = [];
+            isProcessing = false;
+
+            lastDetectedSound = null;
+            lastDetectionTime = 0;
+
+            isListening = true;
+
+            processor.onaudioprocess = event => {
+                const input = event.inputBuffer.getChannelData(0);
+
+                processAudioFrame(input);
+
+                // Отключаем повторное воспроизведение захваченного звука
+                event.outputBuffer.getChannelData(0).fill(0);
+            };
+
+            audioSource.connect(processor);
+            processor.connect(audioContext.destination);
+
+            button.disabled = false;
+            button.textContent = "ОСТАНОВИТЬ ПРОСЛУШИВАНИЕ";
+            button.onclick = stopListening;
+
+            setListenStatus("Слушаю звук игры...", "active");
+
+            displayStream.getVideoTracks()[0].addEventListener(
+                "ended",
+                stopListening
+            );
+
+            audioTracks[0].addEventListener(
+                "ended",
+                stopListening
+            );
+
+        } catch (error) {
+            console.error(error);
+
+            await stopListening();
+
+            setListenStatus(error.message, "error");
+
+            button.disabled = false;
+            button.textContent = "НАЧАТЬ ПРОСЛУШИВАНИЕ";
+            button.onclick = startListening;
+        }
+    }
+
+
+    // Остановка прослушивания
+    async function stopListening() {
+        isListening = false;
+
+        if (processor) {
+            processor.onaudioprocess = null;
+            processor.disconnect();
+            processor = null;
+        }
+
+        if (audioSource) {
+            audioSource.disconnect();
+            audioSource = null;
+        }
+
+        if (displayStream) {
+            displayStream.getTracks().forEach(track => track.stop());
+            displayStream = null;
+        }
+
+        if (audioContext) {
+            await audioContext.close();
+            audioContext = null;
+        }
+
+        if (pipWindow && !pipWindow.closed) {
+            pipWindow.close();
+        }
+
+        preRollBuffer = null;
+        preRollWriteIndex = 0;
+        preRollFilledSamples = 0;
+
+        currentEvent = [];
+        isRecordingEvent = false;
+
+        silenceSamples = 0;
+        eventSamples = 0;
+
+        eventQueue = [];
+
+        button.disabled = false;
+        button.textContent = "НАЧАТЬ ПРОСЛУШИВАНИЕ";
+        button.onclick = startListening;
+
+        setListenStatus("Прослушивание остановлено.");
+    }
+</script>
+
+</body>
+</html>
